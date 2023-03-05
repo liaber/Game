@@ -2,7 +2,7 @@ import pygame,sys,random
 from pygame.math import Vector2
 
 pygame.init()
-WIDTH,HEIGHT = 800,450
+WIDTH,HEIGHT = 400,225
 screen = pygame.display.set_mode((WIDTH*2,HEIGHT*2))
 pygame.display.set_caption("Ghost")
 icon = pygame.image.load("player-0-0.png").convert_alpha()
@@ -11,12 +11,14 @@ displaySurf = pygame.Surface((WIDTH,HEIGHT))
 clock = pygame.time.Clock()
 
 gameObjects = []
+particles = []
 
 class GameObject:
-    def __init__(self,pos,size,velo=Vector2(0,0),color=(0,0,0)):
+    def __init__(self,pos,size,name,velo=Vector2(0,0),color=(0,0,0)):
         self.pos = pos
         self.velo = velo
         self.size = size
+        self.name = name
         self.color = color
         self.rect = pygame.Rect(self.pos.x,self.pos.y,self.size[0],self.size[1])
         gameObjects.append(self)
@@ -67,12 +69,12 @@ class GameObject:
         return pygame.Rect(self.pos.x-camx,self.pos.y-camy,self.size[0],self.size[1]).colliderect(camrect)
 
 class Player(GameObject):
-    def __init__(self,pos,size,name,velo=Vector2(0,0),color=(0,0,0),animations=[]):
-        super().__init__(pos,size,velo,color)
+    def __init__(self,pos,size,name,velo=Vector2(0,0),color=(0,0,0),animations=[],health=100):
+        super().__init__(pos,size,name,velo,color)
         self.animations = animations
-        self.name = name
         self.currentAnimation = 0
         self.currentFrame = 0
+        self.health = health
 
     def NewAnimation(self,frames):
         self.animations.append(frames)
@@ -110,18 +112,25 @@ class Camera:
         self.y = y
         self.rect = pygame.Rect(0,0,WIDTH,HEIGHT)
 
-particles = []
 class Particle:
-    def __init__(self,pos,velo):
+    def __init__(self,pos,velo,size=10,color=(0,0,0),fade=True,fadeSpeed=0.5):
         self.pos = pos
         self.velo = velo
-    def Update(self,gravity,drag):
-        self.velo.y -= gravity
-        self.velo.x *= drag
-        self.pos.y -= self.velo.y
-        self.pos.x += self.velo.x
-    def Draw(self):
-        pygame.draw.circle(displaySurf,(255,255,255),(self.pos.x-camera.x,self.pos.y-camera.y),2)
+        self.size = size
+        self.color = color
+        self.fade = fade
+        self.fadeSpeed = fadeSpeed
+
+    def Draw(self,camx=0,camy=0):
+        pygame.draw.circle(displaySurf, self.color, (self.pos.x-camx,self.pos.y-camy), self.size)
+
+    def Stimulate(self,gravity,drag):
+        self.velo.y-=gravity
+        self.pos.y-=self.velo.y
+        self.velo.x*=drag
+        self.pos.x+=self.velo.x
+        if self.fade:
+            self.size -= self.fadeSpeed
 
 def DisplayObjects():
     for gameObject in gameObjects:
@@ -129,8 +138,8 @@ def DisplayObjects():
         if gameObject.Visible(camera.rect,camera.x,camera.y):
             gameObject.DisplayObject(camera.x,camera.y)
 
-def AddGameObject(pos,size,color=(0,0,0)):
-    gameObjects.append(GameObject(pos,size,color=color))
+def AddGameObject(pos,size,name,color=(0,0,0)):
+    gameObjects.append(GameObject(pos,size,name,color=color))
 
 def LoadMap(path):
     f = open(path,'r')
@@ -148,15 +157,34 @@ def CreateMap(map):
         x=0
         for tile in row:
             if tile == "1":
-                AddGameObject(Vector2(x*16,y*16),(16,16),color="dirt.png")
+                AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock.png")
             elif tile == "2":
-                AddGameObject(Vector2(x*16,y*16),(16,16),color="grass.png")
+                AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-top.png")
+            elif tile == "3":
+                AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-corner-1.png")
+            elif tile == "4":
+                AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-corner-2.png")
+            elif tile == "5":
+              AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-corner-3.png")
+            elif tile == "6":
+                AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-corner-4.png")
+            elif tile == "7":
+              AddGameObject(Vector2(x*16,y*16),(16,16),"rock",color="rock-bottom.png")
+            elif tile == "-":
+                player.pos = Vector2(x*16,y*16)
             x+=1
         y+=1
 
 def Lerp(a,b,t):
     return a + (b - a) * t
 
+def Clamp(min,max,var):
+  if var > max:
+    var = max
+  if var < min:
+    var = min
+  return var
+  
 frameIncrement = 0
 player = Player(Vector2(400,0),(13,16),"player")
 player.NewAnimation(("player-0-0.png","player-0-1.png","player-0-2.png","player-0-3.png"))
@@ -196,6 +224,10 @@ while True:
             player.SetAnimation(0)
         if abs(player.velo.x)>1:
             player.SetAnimation(1)
+            #if player.velo.x > 0:
+                #particles.append(Particle(Vector2(player.pos.x+8,player.pos.y+player.size[1]),Vector2(-3,random.randint(2,5)),color=(0,220,0),size=2,fadeSpeed=0.1))
+            #if player.velo.x < 0:
+                #particles.append(Particle(Vector2(player.pos.x+player.size[0]-8,player.pos.y+player.size[1]),Vector2(3,random.randint(2,5)),color=(0,220,0),size=2,fadeSpeed=0.1))
     
     if (frameIncrement % 5) == 0:
         player.NextAnimationFrame()
@@ -209,15 +241,25 @@ while True:
         if player.IsGrounded():
             player.velo.y = 8
 
+    mx,my = pygame.mouse.get_pos()[0]/2,pygame.mouse.get_pos()[1]/2
+    mouse = pygame.mouse.get_pressed()
+    if mouse[0]:
+        pass
+
     player.Physics(0.75,1)
 
-    displaySurf.fill((60,175,232))
-    #pygame.draw.rect(displaySurf,(255,0,0),camera.rect)
-    DisplayObjects()
+    displaySurf.fill((28, 33, 46))
     for particle in particles:
-        particle.Update(1,0.7)
-        particle.Draw()
+                particle.Stimulate(1,0.95)
+                particle.Draw(camx=camera.x,camy=camera.y)
+                if particle.size < 1:
+                    particles.remove(particle)
 
+    DisplayObjects()
+    pygame.draw.rect(displaySurf,(0,200,0),pygame.Rect(10,10,player.health,30))
+    player.health-=1
+    player.health = Clamp(0,100,player.health)
+  
     screen.blit(pygame.transform.scale2x(displaySurf),(0,0))
     pygame.display.update()
     clock.tick(30)
