@@ -5,7 +5,7 @@ pygame.init()
 WIDTH,HEIGHT = 400,225
 screen = pygame.display.set_mode((WIDTH*2,HEIGHT*2))
 pygame.display.set_caption("Ghost")
-icon = pygame.image.load("player-0-0.png").convert_alpha()
+icon = pygame.image.load("Game/player-0-0.png").convert_alpha()
 pygame.display.set_icon(icon)
 displaySurf = pygame.Surface((WIDTH,HEIGHT))
 clock = pygame.time.Clock()
@@ -23,7 +23,7 @@ class GameObject:
         self.rect = pygame.Rect(self.pos.x,self.pos.y,self.size[0],self.size[1])
         gameObjects.append(self)
         if type(self.color) == str:
-            self.image = pygame.image.load(self.color).convert_alpha()
+            self.image = pygame.image.load(f'Game/{self.color}').convert_alpha()
 
     def DisplayObject(self,camx,camy):
         if type(self.color) == tuple:
@@ -86,8 +86,8 @@ class Player(GameObject):
         self.currentFrame+=1
         if self.currentFrame >= len(self.animations[self.currentAnimation]):
             self.currentFrame = 0
-        #self.color = f'{self.name}-{self.currentAnimation}-{self.currentFrame}.png'
-        self.color = self.animations[self.currentAnimation][self.currentFrame]
+        #self.color = f'Game/{self.name}-{self.currentAnimation}-{self.currentFrame}.png'
+        self.color = f'Game/{self.animations[self.currentAnimation][self.currentFrame]}'
         self.image = pygame.image.load(self.color).convert_alpha()
         if self.velo.x > 0:
             self.image = pygame.transform.flip(self.image, False, False)
@@ -142,7 +142,7 @@ def AddGameObject(pos,size,name,color=(0,0,0)):
     gameObjects.append(GameObject(pos,size,name,color=color))
 
 def LoadMap(path):
-    f = open(path,'r')
+    f = open(f'Game/{path}','r')
     data = f.read()
     f.close()
     data = data.split('\n')
@@ -246,7 +246,7 @@ while True:
     if mouse[0]:
         pass
 
-    player.Physics(0.75,1)
+    player.Physics(0.65,1)
 
     displaySurf.fill((28, 33, 46))
     for particle in particles:
